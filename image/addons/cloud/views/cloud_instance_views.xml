@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="cloud_instance_view_kanban" model="ir.ui.view">
+        <field name="name">cloud.instance.kanban</field>
+        <field name="model">cloud.instance</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="environment">
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <field name="name" class="fw-bold fs-5"/>
+                            <field name="state" widget="badge"
+                                   decoration-success="state == 'running'"
+                                   decoration-danger="state == 'error'"
+                                   decoration-warning="state == 'provisioning'"/>
+                        </div>
+                        <field name="host" class="text-muted"/>
+                        <div class="mt-2">
+                            <span class="badge text-bg-info me-1" invisible="not is_main">main</span>
+                            <field name="origin_id" class="text-muted" invisible="not origin_id"/>
+                        </div>
+                        <div class="mt-2">
+                            <field name="url" widget="url" text="Open ↗" invisible="not url"/>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="cloud_instance_view_list" model="ir.ui.view">
+        <field name="name">cloud.instance.list</field>
+        <field name="model">cloud.instance</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'running'" decoration-danger="state == 'error'">
+                <field name="name"/>
+                <field name="environment"/>
+                <field name="host"/>
+                <field name="namespace"/>
+                <field name="origin_id"/>
+                <field name="active" column_invisible="1"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="cloud_instance_view_form" model="ir.ui.view">
+        <field name="name">cloud.instance.form</field>
+        <field name="model">cloud.instance</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_provision" type="object" string="Provision"
+                            class="btn-primary" invisible="is_main or state == 'running'"/>
+                    <button name="action_clone_to_test" type="object" string="Clone to test"
+                            class="btn-secondary" invisible="is_main or state != 'running'"/>
+                    <button name="action_backup_now" type="object" string="Backup now"
+                            class="btn-secondary" invisible="state != 'running'"/>
+                    <button name="action_restore" type="object" string="Restore from backup"
+                            class="btn-secondary" groups="cloud.group_cloud_manager"
+                            confirm="This tears down the instance and restores its DB from the latest backup. Continue?"
+                            invisible="is_main or state != 'running'"/>
+                    <button name="action_refresh_status" type="object" string="Refresh status"/>
+                    <button name="action_open" type="object" string="Open Odoo" class="btn-secondary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,provisioning,running"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open" type="object" class="oe_stat_button" icon="fa-external-link">
+                            <div class="o_stat_info"><span class="o_stat_text">Open</span></div>
+                        </button>
+                        <button name="action_view_tasks" type="object" class="oe_stat_button" icon="fa-tasks">
+                            <field name="task_count" widget="statinfo" string="Tasks"/>
+                        </button>
+                        <button name="action_view_backups" type="object" class="oe_stat_button" icon="fa-database">
+                            <field name="backup_count" widget="statinfo" string="Backups"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. acme"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="environment"/>
+                            <field name="version_id" invisible="is_main"/>
+                            <field name="is_main" readonly="1"/>
+                            <field name="origin_id" readonly="1" invisible="not origin_id"/>
+                        </group>
+                        <group>
+                            <field name="namespace" readonly="1"/>
+                            <field name="host" readonly="1"/>
+                            <field name="url" widget="url" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Live status">
+                        <field name="pod_status" nolabel="1" readonly="1"/>
+                    </group>
+                    <group string="Error" invisible="state != 'error'">
+                        <field name="error_message" nolabel="1" readonly="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="cloud_instance_view_search" model="ir.ui.view">
+        <field name="name">cloud.instance.search</field>
+        <field name="model">cloud.instance</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="namespace"/>
+                <filter name="production" string="Production" domain="[('environment', '=', 'production')]"/>
+                <filter name="testing" string="Testing" domain="[('environment', '=', 'testing')]"/>
+                <separator/>
+                <filter name="running" string="Running" domain="[('state', '=', 'running')]"/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter name="group_env" string="Environment" context="{'group_by': 'environment'}"/>
+                <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="cloud_instance_action" model="ir.actions.act_window">
+        <field name="name">Instances</field>
+        <field name="res_model">cloud.instance</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="cloud_instance_view_search"/>
+    </record>
+
+    <record id="cloud_task_view_list" model="ir.ui.view">
+        <field name="name">cloud.task.list</field>
+        <field name="model">cloud.task</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'done'" decoration-danger="state == 'error'"
+                  decoration-info="state == 'running'" decoration-muted="state == 'pending'">
+                <field name="create_date"/>
+                <field name="instance_id"/>
+                <field name="operation"/>
+                <field name="attempts"/>
+                <field name="state" widget="badge"/>
+                <field name="error_message" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="cloud_task_action" model="ir.actions.act_window">
+        <field name="name">Tasks</field>
+        <field name="res_model">cloud.task</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="cloud_backup_view_list" model="ir.ui.view">
+        <field name="name">cloud.backup.list</field>
+        <field name="model">cloud.backup</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'completed'" decoration-muted="state == 'requested'"
+                  decoration-danger="state == 'failed'">
+                <field name="backup_time"/>
+                <field name="name"/>
+                <field name="origin"/>
+                <field name="backup_id" optional="show"/>
+                <field name="instance_is_main" column_invisible="1"/>
+                <field name="state" widget="badge"/>
+                <button name="action_refresh" type="object" string="Refresh" icon="fa-refresh"
+                        class="btn-link" invisible="state != 'requested'"/>
+                <button name="action_restore_to_test" type="object" string="Restore to test" icon="fa-flask"
+                        class="btn-link" invisible="state != 'completed'"/>
+                <button name="action_restore" type="object" string="Restore in place" icon="fa-history"
+                        class="btn-link text-primary" groups="cloud.group_cloud_manager"
+                        invisible="state != 'completed' or instance_is_main"
+                        confirm="This tears down the instance and restores its DB from this backup. Continue?"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="cloud_backup_view_form" model="ir.ui.view">
+        <field name="name">cloud.backup.form</field>
+        <field name="model">cloud.backup</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="instance_is_main" invisible="1"/>
+                    <button name="action_restore_to_test" type="object" string="Restore to a test copy"
+                            class="btn-primary" invisible="state != 'completed'"/>
+                    <button name="action_restore" type="object" string="Restore in place"
+                            class="btn-secondary" groups="cloud.group_cloud_manager"
+                            invisible="state != 'completed' or instance_is_main"
+                            confirm="This tears down the instance and restores its DB from this backup. Continue?"/>
+                    <button name="action_refresh" type="object" string="Refresh" invisible="state != 'requested'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="instance_id"/>
+                            <field name="origin"/>
+                            <field name="backup_time"/>
+                        </group>
+                        <group>
+                            <field name="name"/>
+                            <field name="backup_id"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="cloud_backup_action" model="ir.actions.act_window">
+        <field name="name">Backups</field>
+        <field name="res_model">cloud.backup</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="cloud_odoo_version_view_list" model="ir.ui.view">
+        <field name="name">cloud.odoo.version.list</field>
+        <field name="model">cloud.odoo.version</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="image"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="cloud_odoo_version_action" model="ir.actions.act_window">
+        <field name="name">Odoo Versions</field>
+        <field name="res_model">cloud.odoo.version</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <menuitem id="cloud_menu_root" name="Cloud" groups="cloud.group_cloud_user"/>
+    <menuitem id="cloud_menu_instances" name="Instances"
+              parent="cloud_menu_root" action="cloud_instance_action" sequence="10"/>
+    <menuitem id="cloud_menu_tasks" name="Tasks"
+              parent="cloud_menu_root" action="cloud_task_action" sequence="20"/>
+    <menuitem id="cloud_menu_config" name="Configuration" parent="cloud_menu_root" sequence="90"
+              groups="cloud.group_cloud_manager"/>
+    <menuitem id="cloud_menu_versions" name="Odoo Versions"
+              parent="cloud_menu_config" action="cloud_odoo_version_action" sequence="10"/>
+</odoo>

@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_cloud_instance_user,cloud.instance.user,model_cloud_instance,group_cloud_user,1,1,1,0
+access_cloud_instance_manager,cloud.instance.manager,model_cloud_instance,group_cloud_manager,1,1,1,0
+access_cloud_task_user,cloud.task.user,model_cloud_task,group_cloud_user,1,1,1,0
+access_cloud_task_manager,cloud.task.manager,model_cloud_task,group_cloud_manager,1,1,1,1
+access_cloud_version_user,cloud.odoo.version.user,model_cloud_odoo_version,group_cloud_user,1,0,0,0
+access_cloud_version_manager,cloud.odoo.version.manager,model_cloud_odoo_version,group_cloud_manager,1,1,1,1
+access_cloud_backup_user,cloud.backup.user,model_cloud_backup,group_cloud_user,1,1,1,0
+access_cloud_backup_manager,cloud.backup.manager,model_cloud_backup,group_cloud_manager,1,1,1,1

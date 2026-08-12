@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Local / scratch
+/tmp/
+*.log
+
+# Local-only
+*.html
+
+# Agent / editor
+.claude/

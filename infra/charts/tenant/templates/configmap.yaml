@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odoo-env
+data:
+  DB_HOST: postgres-rw
+  PGHOST: postgres-rw
+  PGDATABASE: odoo
+  DB_PORT_5432_TCP_ADDR: postgres-rw
+  SESSION_DB_URI: postgres:///session-db
+  AWS_ENDPOINT_URL: {{ .Values.minio.endpoint | quote }}
+  RUNNING_ENV: prod
+{{- if .Values.isMain }}
+  INIT_MODULES: web,base,fs_minio,cloud
+{{- end }}
+  SERVER_ENV_CONFIG: |
+    [fs_storage.minio]
+    protocol=s3
+    directory_path={{ .Values.minio.bucket }}{{ if not .Values.isMain }}/{{ .Values.name }}{{ end }}
+    eval_options_from_env=True
+    options={"key": "$AWS_ACCESS_KEY_ID", "secret": "$AWS_SECRET_ACCESS_KEY", "client_kwargs": {"endpoint_url": "$AWS_ENDPOINT_URL"}, "config_kwargs": {"s3": {"addressing_style": "path"}}}
+    use_as_default_for_attachments=True

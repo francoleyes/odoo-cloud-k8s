@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo
+  labels:
+    app: odoo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: odoo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: odoo
+    spec:
+{{- if .Values.isMain }}
+      serviceAccountName: odoo
+{{- end }}
+      initContainers:
+        - name: minio-bucket
+          image: minio/mc:latest
+          command:
+            - sh
+            - -c
+            - |
+              until mc alias set m "$AWS_ENDPOINT_URL" "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"; do
+                echo "waiting for minio..."; sleep 2;
+              done
+              mc mb --ignore-existing m/{{ .Values.minio.bucket }}
+{{ include "tenant.envBlock" . | indent 10 }}
+{{- if .Values.clone.enabled }}
+        - name: files-clone
+          image: minio/mc:latest
+          command:
+            - sh
+            - -c
+            - |
+              until mc alias set m "$AWS_ENDPOINT_URL" "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"; do
+                echo "waiting for minio..."; sleep 2;
+              done
+              echo "mirroring filestore {{ .Values.clone.sourcePrefix }} -> {{ .Values.clone.targetPrefix }}"
+              mc mirror --overwrite "m/{{ .Values.clone.sourcePrefix }}/" "m/{{ .Values.clone.targetPrefix }}/" || true
+{{ include "tenant.envBlock" . | indent 10 }}
+        - name: db-clone
+          image: {{ .Values.postgres.image | quote }}
+          command:
+            - bash
+            - -c
+            - |
+              set -eo pipefail
+              until pg_isready -h postgres-rw -U odoo; do echo "waiting local pg..."; sleep 2; done
+              until pg_isready -h postgres-rw.{{ .Values.clone.sourceNamespace }}.svc -U odoo; do echo "waiting source pg..."; sleep 2; done
+              echo "resetting target schema"
+              PGPASSWORD="$PGSUPER" psql -h postgres-rw -U postgres -d odoo -v ON_ERROR_STOP=1 \
+                -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public AUTHORIZATION odoo;"
+              echo "cloning DB from {{ .Values.clone.sourceNamespace }}"
+              PGPASSWORD="$SRC_PGPASSWORD" pg_dump -h postgres-rw.{{ .Values.clone.sourceNamespace }}.svc -U odoo -d odoo -Fc \
+                | PGPASSWORD="$PGSUPER" pg_restore -h postgres-rw -U postgres -d odoo --no-acl
+              echo "db clone done"
+          env:
+            - name: SRC_PGPASSWORD
+              valueFrom:
+                secretKeyRef: { key: SRC_PGPASSWORD, name: clone-source }
+            - name: PGSUPER
+              valueFrom:
+                secretKeyRef: { key: password, name: postgres-superuser }
+{{- else }}
+        - name: odoo-init
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: Never
+          args:
+            - /entrypoint-dbbase
+{{ include "tenant.envBlock" . | indent 10 }}
+{{- end }}
+{{- if .Values.neutralize }}
+        - name: neutralize
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: Never
+          command:
+            - bash
+            - -c
+            - |
+              until pg_isready -h postgres-rw -U odoo; do echo "waiting pg..."; sleep 2; done
+              odoo neutralize -d odoo
+{{ include "tenant.envBlock" . | indent 10 }}
+{{- end }}
+      containers:
+        - name: odoo
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: Never
+          args:
+            - odoo
+            - --load=base,web,session_db
+            - --database=odoo
+            - --db-filter=^odoo$
+            - --no-database-list
+{{ include "tenant.envBlock" . | indent 10 }}
+          ports:
+            - name: web
+              containerPort: 8069
+            - name: websocket
+              containerPort: 8072
+          resources:
+{{ toYaml .Values.odoo.resources | indent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /web/health
+              port: web
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /web/health
+              port: web
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            timeoutSeconds: 3

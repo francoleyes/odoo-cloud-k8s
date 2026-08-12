@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="fs_storage_minio" model="fs.storage">
+        <field name="name">MinIO</field>
+        <field name="code">minio</field>
+    </record>
+</odoo>

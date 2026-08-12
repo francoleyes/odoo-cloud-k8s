@@ -1,0 +1,6 @@
+apiVersion: v2
+name: tenant
+description: An isolated Odoo instance (Odoo + CloudNativePG + shared MinIO) for one customer
+type: application
+version: 0.1.0
+appVersion: "19.0"

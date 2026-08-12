@@ -1,0 +1,43 @@
+name: ""
+subdomain: ""
+baseDomain: "19.localhost"
+isMain: false
+
+clone:
+  enabled: false
+  sourceNamespace: ""
+  sourcePrefix: ""
+  targetPrefix: ""
+  sourcePgPassword: ""
+
+image: "odoo-cloud:19"
+neutralize: false
+
+minio:
+  endpoint: "http://minio.odoo:9000"
+  bucket: "odoo-attachments"
+  user: ""
+  password: ""
+
+odoo:
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "640Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+postgres:
+  image: "ghcr.io/cloudnative-pg/postgresql:16.3"
+  storage: "1Gi"
+
+backup:
+  enabled: true
+  schedule: "0 0 2 * * *"
+  retention: "7d"
+
+restore:
+  enabled: false
+  sourceName: ""
+  backupID: ""

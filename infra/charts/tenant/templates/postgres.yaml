@@ -1,0 +1,75 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+spec:
+  instances: 1
+  imageName: {{ .Values.postgres.image }}
+  imagePullPolicy: IfNotPresent
+  enableSuperuserAccess: true
+{{- if .Values.restore.enabled }}
+  bootstrap:
+    recovery:
+      source: source-backup
+      database: odoo
+      owner: odoo
+{{- if .Values.restore.backupID }}
+      recoveryTarget:
+        backupID: {{ .Values.restore.backupID | quote }}
+        targetImmediate: true
+{{- end }}
+  externalClusters:
+    - name: source-backup
+      barmanObjectStore:
+        serverName: postgres
+        destinationPath: s3://{{ .Values.minio.bucket }}/backups/{{ .Values.restore.sourceName }}
+        endpointURL: {{ .Values.minio.endpoint | quote }}
+        s3Credentials:
+          accessKeyId:
+            name: minio-creds
+            key: MINIO_ROOT_USER
+          secretAccessKey:
+            name: minio-creds
+            key: MINIO_ROOT_PASSWORD
+        wal:
+          compression: gzip
+{{- else }}
+  bootstrap:
+    initdb:
+      database: odoo
+      owner: odoo
+      postInitSQL:
+        - CREATE DATABASE "session-db" WITH OWNER odoo;
+        - ALTER USER "odoo" WITH CREATEDB;
+{{- end }}
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: 128MB
+      effective_cache_size: 512MB
+      work_mem: 8MB
+      maintenance_work_mem: 64MB
+      max_wal_size: 1GB
+      min_wal_size: 128MB
+  storage:
+    size: {{ .Values.postgres.storage | quote }}
+{{- if .Values.backup.enabled }}
+  backup:
+    retentionPolicy: {{ .Values.backup.retention | quote }}
+    barmanObjectStore:
+{{- if .Values.restore.enabled }}
+      # Fresh serverName so CNPG's post-restore "empty archive" check passes.
+      serverName: postgres-restored
+{{- end }}
+      destinationPath: s3://{{ .Values.minio.bucket }}/backups/{{ .Values.name }}
+      endpointURL: {{ .Values.minio.endpoint | quote }}
+      s3Credentials:
+        accessKeyId:
+          name: minio-creds
+          key: MINIO_ROOT_USER
+        secretAccessKey:
+          name: minio-creds
+          key: MINIO_ROOT_PASSWORD
+      wal:
+        compression: gzip
+{{- end }}

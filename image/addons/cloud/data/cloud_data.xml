@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="cron_run_tasks" model="ir.cron">
+        <field name="name">Cloud: run pending tasks</field>
+        <field name="model_id" ref="model_cloud_task"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_run_tasks()</field>
+        <field name="interval_number">2</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <record id="cron_refresh_status" model="ir.cron">
+        <field name="name">Cloud: refresh instance status</field>
+        <field name="model_id" ref="model_cloud_instance"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_refresh_status()</field>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <record id="cron_refresh_backups" model="ir.cron">
+        <field name="name">Cloud: refresh backups</field>
+        <field name="model_id" ref="model_cloud_backup"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_refresh()</field>
+        <field name="interval_number">2</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <data noupdate="1">
+        <record id="cloud_base_domain" model="ir.config_parameter">
+            <field name="key">cloud.base_domain</field>
+            <field name="value">19.localhost:8090</field>
+        </record>
+
+        <record id="cloud_odoo_version_19" model="cloud.odoo.version">
+            <field name="name">Odoo 19</field>
+            <field name="image">odoo-cloud:19</field>
+        </record>
+
+        <record id="cloud_instance_main" model="cloud.instance">
+            <field name="name">Main</field>
+            <field name="is_main" eval="True"/>
+            <field name="state">running</field>
+        </record>
+    </data>
+</odoo>
